@@ -1,32 +1,52 @@
-public class Single {
-    public static void main(String[] args) throws InterruptedException {
+import java.util.ArrayList;
+import java.util.concurrent.*;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        long singleStartTime = System.nanoTime();
+
+        long singleCount = 0;
+        for (long i = 0; i < 1_000_000_000L; i++) {
+            singleCount++;
+        }
+
+        double singleSeconds = (System.nanoTime() - singleStartTime) / 1_000_000_000.0;
+        System.out.println("Single Count: " + singleCount);
+        System.out.println("Single Time: " + singleSeconds + " seconds");
+        System.out.println("------------------------------------------");
+
+        runMulti();
+    }
+
+    public static void runMulti() throws Exception {
         long startTime = System.nanoTime();
 
-        Thread[] threads = new Thread[1000];
-        long[] totals = new long[1000];
-        for (int i = 0; i < threads.length; i++) {
-            final int index = i;
-            threads[i] = new Thread(() -> {
-                long total = 0;
-                for (int number = 1; number <= 1_000_000; number++) {
-                    total++;
-                }
-                totals[index] = total;
-            });
-        }
-        for (Thread thread : threads) {
-            thread.start();
-        }
+        int workers = Runtime.getRuntime().availableProcessors();
+        ExecutorService executor = Executors.newFixedThreadPool(workers);
+        ArrayList<Future<Long>> futures = new ArrayList<>();
 
-        for (Thread thread : threads) {
-            thread.join();
+        try {
+            for (int i = 0; i < 1000; i++) {
+                Callable<Long> task = () -> {
+                    long count = 0;
+                    for (int number = 1; number <= 1_000_000; number++) {
+                        count++;
+                    }
+                    return count;
+                };
+                futures.add(executor.submit(task));
+            }
+
+            long total = 0;
+            for (Future<Long> future : futures) {
+                total += future.get();
+            }
+            double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
+            System.out.println("Multi Count: " + total);
+            System.out.println("Multi Time: " + seconds + " seconds");
+        } finally {
+            executor.shutdown();
         }
-        long grandTotal = 0;
-        for (long total : totals) {
-            grandTotal += total;
-        }
-        double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-        System.out.println("Total: " + grandTotal);
-        System.out.println("Time: " + seconds + " seconds");
+        System.out.println("Project complete: counting and timer merged");
     }
 }
